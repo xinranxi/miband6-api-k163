@@ -1,4 +1,4 @@
-# miband6-pc
+# miband6-api-k163
 
 > **[中文说明（说人话版）→](README.zh-CN.md)**
 
