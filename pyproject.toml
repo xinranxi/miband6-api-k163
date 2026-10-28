@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "miband6-pc"
+version = "0.1.0"
+description = "Standalone PC client for Xiaomi Mi Band 6 (sect163k1 ECDH)"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+dependencies = [
+    "bleak>=0.22",
+    "pycryptodome>=3.20",
+]
+
+[project.scripts]
+miband6 = "miband6.cli:main"
+
+[tool.setuptools]
+packages = ["miband6"]
