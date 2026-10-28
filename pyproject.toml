@@ -18,4 +18,4 @@ dependencies = [
 miband6 = "miband6.cli:main"
 
 [tool.setuptools]
-packages = ["miband6"]
+packages = ["miband6", "miband6.crypto", "miband6.protocol"]

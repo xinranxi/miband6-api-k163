@@ -1,163 +1,326 @@
-# 小米手环6 电脑直连工具（中文说明）
+# miband6-pc
 
-**一句话：用电脑直接连小米手环6，读电量、步数、心率，手机上那个 App 完全不用管。**
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](#环境要求)
 
----
+小米手环6 的独立 PC 客户端。通过蓝牙直接与手环通信，读取电量、步数、实时心率，无需手机 App 参与。
 
-## 这玩意儿是干嘛的
-
-平时你的手环数据都得经过手机上的「小米运动健康」App 才能看。这个工具让你**跳过手机**，用一台带蓝牙的电脑直接跟手环对话。
-
-能读到：
-
-- 🔋 电量
-- 👣 步数
-- ❤️ 实时心率（手环得戴在手上）
-- 🕐 手环上的时间
+> English version: [README.md](README.md)
 
 ---
 
-## 为什么别人做的工具都连不上
+## 背景
 
-这是最核心的一点，也是这个项目存在的理由。
+小米手环6 的蓝牙连接需要经过一次基于 ECDH 的认证握手。现有开源实现对该协议的曲线选择存在偏差，导致在较新固件上认证失败：
 
-手环连电脑时要「对暗号」（认证）。这个暗号算法用了一条**椭圆曲线**。问题是：
+| 项目 | 使用的曲线 | 在固件 1.0.6.20 上的结果 |
+|------|-----------|--------------------------|
+| Gadgetbridge | P-256（素数域） | 认证失败，提示密钥无效 |
+| band6.py | P-192（素数域） | 认证失败，返回状态码 `0x07` |
+| **本项目** | **sect163k1（二进制域）** | **认证成功** |
 
-- **Gadgetbridge**（很有名的开源手环工具）用的曲线：`P-256`
-- **band6.py**（另一个开源项目）用的曲线：`P-192`
-- **实际手环用的是**：`sect163k1`
-
-前两个是「素数域曲线」，最后这个是「二进制域曲线」——**完全不同的数学体系**。
-
-打个比方：大家都在用同一把钥匙，但插错了锁孔。所以哪怕你的配对密钥完全正确，手环也会回一句「密钥无效」。
-
-**这个项目就是把锁孔找对了。** 找对之后，认证一次就过。
+手环实际使用的是 **sect163k1（NIST K-163）二进制域椭圆曲线**，与上述项目假设的素数域曲线属于不同的数学体系。使用正确的曲线后，认证可正常完成。
 
 ---
 
-## 怎么用（三步）
+## 功能
 
-### 第一步：装环境
+- 扫描附近的 BLE 设备
+- 完成 ECDH 认证握手
+- 读取电量、步数计数、设备时间
+- 订阅实时心率（需佩戴手环）
+- **拉取历史活动数据**：手环本地存储的分钟级步数、心率、睡眠记录，可导出为 CSV / JSON
+- 提供可离线验证的曲线算法测试
 
-电脑上装好 Python（3.8 以上），然后：
+---
+
+## 环境要求
+
+| 项目 | 要求 |
+|------|------|
+| Python | 3.8 及以上 |
+| 蓝牙 | 支持 BLE 的适配器 |
+| 系统 | Windows / Linux / macOS |
+| 依赖 | `pip install -r requirements.txt` |
+
+无需 root 权限，无需安装厂商 App。
+
+---
+
+## 安装
 
 ```bash
+git clone <repo-url>
+cd miband6-pc
 pip install -r requirements.txt
 ```
 
-### 第二步：拿到你手环的「配对密钥」
+---
 
-这是一串 32 位的十六进制字符，相当于手环跟你账号之间的专属密码。**每个手环都不一样，只属于你自己。**
+## 获取配对密钥
 
-获取方法（Android 手机，不用 root）：
+手环与账号之间通过一个 32 位十六进制字符串（配对密钥）建立信任关系。每台设备的密钥各不相同，需从自己的账号获取。
 
-1. 手机打开「小米运动健康」
-2. 我的 → 关于 → **连续点那个橙色 logo 十几次**，会提示开启日志
-3. 连一次手环，等同步完成
-4. 电脑上执行：
+**方式一：从官方 App 日志读取（Android，无需 root）**
+
+1. 打开小米运动健康 App
+2. 进入「我的 → 关于」，连续点击 Logo 触发日志开关
+3. 连接手环并完成一次同步
+4. 在电脑上拉取日志并查找密钥：
 
 ```bash
 adb pull /sdcard/Android/data/com.mi.health/files/log/XiaomiFit.device.log
+grep -o 'huamiAuthKey=[0-9a-f]\{32\}' XiaomiFit.device.log
 ```
 
-5. 在拿到的日志里搜 `huamiAuthKey=`，等号后面那 32 位就是你的密钥。
+该方法与 Gadgetbridge 官方文档所述一致。
 
-> 这个方法就是 Gadgetbridge 官方文档写的方法，很正规。
+**方式二：从导出的设备数据库读取**
 
-### 第三步：连手环
+若已导出 App 数据库，密钥位于 `device_db` 中对应手环记录的 `detail` 字段。
 
-先扫描，确认电脑能看到你的手环：
+---
+
+## 使用
+
+### 扫描设备
 
 ```bash
 python -m miband6.cli scan
 ```
 
-然后读数据：
+### 读取基本信息
 
 ```bash
-python -m miband6.cli info --mac 你的手环MAC --key 你的32位密钥
+python -m miband6.cli info --mac <MAC地址> --key <32位密钥>
 ```
 
-跑出来大概长这样：
+输出示例：
 
 ```
-Authenticated. Session key: ef6ac783...
+Authenticated. Session key: ef6ac7839763a82600e373ccd204a894
   Battery: 96%
   Steps (raw u32): [12, 0, 0]
   Device time: 2026-10-29 00:02:44
 ```
 
-想测心率（**记得把手环戴到手腕上**）：
+### 订阅实时心率
 
 ```bash
-python -m miband6.cli hr --mac 你的MAC --key 你的密钥 --secs 60
+python -m miband6.cli hr --mac <MAC地址> --key <32位密钥> --secs 60
+```
+
+注意：心率测量依赖光学传感器检测皮肤接触，需将手环佩戴在手腕上，否则设备不会输出采样。
+
+### 导出数据（拉取历史）
+
+从手环拉取本地存储的历史活动数据，导出为 CSV 与 JSON：
+
+```bash
+python -m miband6.cli export --mac <MAC地址> --key <32位密钥> --days 3 --out ./data
+```
+
+参数：
+
+| 参数 | 说明 |
+|------|------|
+| `--days` | 回溯天数，默认 3 |
+| `--out` | 输出目录，默认 `./miband6-data` |
+| `--timeout` | 拉取超时（秒），默认 30 |
+
+生成文件：
+
+```
+miband6-activity-<时间戳>.csv   逐分钟明细
+miband6-activity-<时间戳>.json  汇总（样本数、总步数、心率统计）
+```
+
+CSV 每行一个分钟级样本，列：
+
+```
+time, kind, intensity, steps, heart_rate, sleep, deep_sleep, rem_sleep
+```
+
+JSON 汇总示例：
+
+```json
+{
+  "device": { "mac": "AA:BB:CC:DD:EE:FF" },
+  "since": "2026-10-27T00:00:00",
+  "samples": 2940,
+  "first_sample": "2026-10-27T00:00:00",
+  "last_sample": "2026-10-29T00:59:00",
+  "total_steps": 540,
+  "heart_rate": { "count": 2829, "avg": 68, "min": 45, "max": 110 }
+}
+```
+
+> 手环本地仅保存近期滚动数据（通常最近数天到数周）。更早的历史在厂商云端或手机 App 的本地数据库中。`heart_rate` 为 `0xFF` 的样本表示该分钟未测量心率（如睡眠时段），导出时留空。
+
+### Web 大屏（可选）
+
+```bash
+python -m miband6.cli serve --port 8080
+```
+
+浏览器打开 `http://127.0.0.1:8080`：点「扫描」发现手环 → 选择设备 → 填配对密钥 → 选时间范围 → 「连接并拉取」，即可看到数据大屏。页面里的「如何获取？」给出了密钥获取步骤，也支持通过 adb 从已连接手机自动提取。
+
+> 浏览器无法直接访问蓝牙，因此由本地 Python 进程作为后端执行 BLE 操作。
+
+### 作为库调用
+
+```python
+import asyncio
+import datetime
+from miband6.device import MiBand6
+
+async def main():
+    async with MiBand6("AA:BB:CC:DD:EE:FF", bytes.fromhex("<32位密钥>")) as band:
+        await band.authenticate()
+        print("电量:", await band.read_battery())
+        since = datetime.datetime.now() - datetime.timedelta(days=3)
+        samples = await band.fetch_activity(since)
+        print("拉到样本数:", len(samples))
+
+asyncio.run(main())
 ```
 
 ---
 
-## 需要准备什么
+## 作为数据接口
 
-| 东西 | 说明 |
-|---|---|
-| 一台电脑 | Windows / Mac / Linux 都行，要有蓝牙 |
-| 手环的配对密钥 | 按上面第二步获取，只属于你自己的手环 |
-| Python | 3.8 以上 |
+本项目的核心是一个**面向手环的数据接口**。CLI 与 Web 大屏都只是它的调用方——大屏主要用于让开发者确认数据是否已正确读取。
 
-**不需要**：root、刷机、手机一直开着、装什么破解软件。
+三种使用方式：
+
+**1. Python 调用**
+
+```python
+import asyncio, datetime
+from miband6.device import MiBand6
+
+async def main():
+    async with MiBand6("AA:BB:CC:DD:EE:FF", bytes.fromhex("<密钥>")) as band:
+        await band.authenticate()
+        since = datetime.datetime.now() - datetime.timedelta(days=3)
+        samples = await band.fetch_activity(since)
+        # 每个样本：
+        #   {"time": datetime, "kind": int, "steps": int,
+        #    "heart_rate": int|None, "sleep": int,
+        #    "deep_sleep": int|None, "rem_sleep": int|None}
+
+asyncio.run(main())
+```
+
+**2. 本地 HTTP 服务**
+
+```bash
+python -m miband6.cli serve --port 8080
+```
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/fetch \
+  -H 'Content-Type: application/json' \
+  -d '{"mac":"AA:BB:CC:DD:EE:FF","key":"<32位密钥>","days":3}'
+# -> {"ok": true, "agg": { "hr_points": [...], "steps_by_day": {...}, ... }}
+```
+
+另提供 `POST /api/scan`（扫描附近手环）与 `POST /api/extract_key`（通过 adb 从已连接手机提取密钥）。
+
+**3. 命令行**
+
+```bash
+python -m miband6.cli export --mac AA:BB:CC:DD:EE:FF --key <32位密钥> --days 3
+```
 
 ---
 
-## 能做什么 / 不能做什么
+## 工作原理
 
-**能做：**
-- 电脑直接连手环，认证、读实时数据
-- 验证你的配对密钥对不对
+认证握手在 chunked transfer 特征上进行，共三步：
 
-**不能做：**
-- ❌ 读很久以前的历史数据（手环里只存最近几十天的滚动数据，完整历史在 App 云端/手机本地）
-- ❌ 手环没戴在手上时读心率（光学传感器检测不到皮肤，手环会拒绝）
-- ❌ 读别人的手环（每台手环的密钥不同，你只有自己的）
+```
+host → band   [04 02 00 02] + 客户端公钥(48B)
+band → host   [10 04 01] + 随机数(16B) + 手环公钥(48B)
+host → band   [05] + AES-ECB(配对密钥, 随机数) + AES-ECB(会话密钥, 随机数)
+band → host   [10 05 01]        认证成功
+```
+
+其中：
+
+```
+共享密钥   = ECDH_sect163k1(客户端私钥, 手环公钥)      # 24 字节
+会话密钥   = 共享密钥[8:24] XOR 配对密钥               # 16 字节
+```
+
+完整的协议规格、分包格式与曲线参数见 [docs/PROTOCOL.md](docs/PROTOCOL.md)。
 
 ---
 
-## 想验证代码是对的？不用手环
+## 测试
 
-项目里内置了真实握手时抓到的测试数据。跑一下单元测试：
+曲线与 ECDH 算法提供已知答案测试，无需连接设备即可验证：
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-如果 7 个测试全过，说明这套曲线算法算出来的结果，跟真机完全一致。**任何拿到代码的人都能验证，不需要有手环。**
+测试使用真实握手过程中采集的密钥对作为向量。全部通过即说明本实现产生的共享密钥与固件一致。
 
 ---
 
-## 开发者想知道的技术细节
+## 项目结构
 
-看 `docs/PROTOCOL.md`，里面有：
-
-- 完整的认证握手流程（每一步发什么、收什么）
-- 分包格式（chunked transfer）
-- sect163k1 曲线的全部参数
-- 会话密钥怎么算出来
-
----
-
-## 关于合规
-
-这个工具只做一件事：**读你自己已经配对好的手环**。
-
-- 用的是你自己设备的密钥
-- 没有破解任何加密（认证是你和手环之间的正常握手）
-- 没有访问别人的设备
-- 没有重新分发任何厂商代码
-
-纯属「我自己买的手环，我想用我自己的方式读数据」。
+```
+miband6/
+  k163.py      sect163k1 有限域与曲线运算（纯 Python）
+  chunked.py   分包传输协议
+  auth.py      认证握手
+  fetch.py     历史数据拉取协议
+  activity.py  活动样本解码
+  device.py    设备封装
+  cli.py       命令行接口
+docs/
+  PROTOCOL.md  协议规格
+tests/
+  test_k163.py 已知答案测试
+examples/      示例脚本
+```
 
 ---
 
-## 证书
+## 适用边界
 
-MIT，随便用。
+**支持：**
+- 与本人已配对的手环建立连接并读取实时数据
+- 拉取手环**本地存储**的历史活动数据（分钟级步数、心率、睡眠）
 
-小米、华米等商标归各自公司所有，本项目跟它们没有关系。
+**不支持：**
+- 读取手环本地已不存在的更早历史。手环仅保存近期滚动数据（通常最近数天到数周），完整历史保留在 App 云端或手机本地数据库中。
+- 未佩戴状态下读取心率。
+- 访问他人设备。每台设备的密钥均不相同。
+
+---
+
+## 常见问题
+
+**Q：提示认证失败 / 密钥无效？**
+
+确认密钥为 32 位十六进制，且对应本台设备。可使用 `--info` 快速验证。
+
+**Q：能读到多久以前的数据？**
+
+本工具直接与手环通信，只能获取手环当前存储的数据。历史数据请参考 App 提供的导出功能。
+
+**Q：为什么心率读不到？**
+
+需将手环佩戴在手腕上。传感器检测不到皮肤接触时，设备会拒绝测量。
+
+---
+
+## 许可
+
+本项目采用 [MIT](LICENSE) 许可证。
+
+小米、华米及相关商标归各自权利人所有，本项目与其无隶属关系。本工具仅用于读取本人已配对手环的数据，不涉及破解加密或访问他人设备。

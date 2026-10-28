@@ -24,7 +24,7 @@ import os
 
 from Crypto.Cipher import AES
 
-from . import k163
+from ..crypto import k163
 from . import chunked
 
 
@@ -68,7 +68,7 @@ async def authenticate(client, pairing_key: bytes, ctx, xh_start: int = 0):
 
     Returns the derived session key on success.
     """
-    from .device import write_message  # local import to avoid cycle
+    from ..device import write_message  # local import to avoid cycle
 
     d, client_pub = _new_keypair()
     pub_bytes = k163.pubkey_to_bytes(client_pub)

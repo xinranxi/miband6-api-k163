@@ -13,7 +13,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from miband6 import k163
+from miband6.crypto import k163
 
 
 # (private scalar, public point) pairs, encoded exactly as on the wire.

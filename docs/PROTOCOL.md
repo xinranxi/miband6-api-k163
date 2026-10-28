@@ -118,3 +118,65 @@ are readable:
 
 Heart-rate measurement requires the band to be worn (the optical sensor
 must detect skin contact); otherwise the device suppresses samples.
+
+## Historical data fetch
+
+Stored activity/health records are fetched over the **fetch**
+characteristic (`00000004`), with samples streamed on the **activity-data**
+characteristic (`00000005`).
+
+Verified flow:
+
+```
+1. subscribe 00000005 (activity data)
+2. write chunked message (tag 0x0500) = [01]              # feature toggle
+3. subscribe 00000004 (fetch)   -- start reply arrives here
+4. write fetch command: [01, data_type] + time_bytes(since)
+5. band → host  10 01 01  (0x10 response, 0x01 start-date, 0x01 success)
+6. write [02]                    # start streaming
+7. band → host  activity samples on 00000005
+8. band → host  10 02 01         # completion
+```
+
+### Time encoding — exactly 8 bytes
+
+```
+year (uint16 little-endian) | month | day | hour | minute | 0x00 | timezone
+```
+
+`timezone = utc_offset_hours * 4` (e.g. UTC+8 → `0x20`).
+
+> A trailing extra byte here makes the firmware reject the request with
+> status `0x02` — the length is critical.
+
+### Data types (`data_type`)
+
+| type   | meaning                 |
+|--------|-------------------------|
+| `0x01` | activity (steps/hr/sleep) |
+| `0x02` | manual heart rate       |
+| `0x05` | sports summaries        |
+| `0x12` | stress (manual)         |
+| `0x13` | stress (automatic)      |
+| `0x25` | SpO2 (normal)           |
+| `0x26` | SpO2 (sleep)            |
+| `0x3a` | resting heart rate      |
+| `0x3d` | max heart rate          |
+
+### Activity sample format
+
+Each notification on `00000005` is `counter (1 byte)` followed by N
+fixed 8-byte samples (one sample per minute):
+
+```
+kind | intensity | steps | heart_rate | unknown | sleep | deep_sleep | rem_sleep
+```
+
+- `heart_rate == 0xFF` → not measured (common in sleep `kind` ranges like `0xF0`)
+- `deep_sleep` / `rem_sleep == 0x80` → not applicable
+- `kind` classifies the sample: `0x50` activity, `0x70` light activity,
+  `0xF0`–`0xFA` sleep, etc.
+
+Samples are one minute apart starting at the `since` time of the fetch
+command.
+

@@ -6,8 +6,8 @@ import struct
 
 from bleak import BleakClient, BleakScanner
 
-from . import chunked
-from . import auth
+from .protocol import chunked
+from .protocol import auth
 
 # GATT characteristic UUIDs
 UUID_CHUNKED_WRITE = "00000016-0000-3512-2118-0009af100700"
@@ -20,6 +20,8 @@ UUID_REALTIME_STEPS = "00000007-0000-3512-2118-0009af100700"
 UUID_BATTERY = "00002a19-0000-1000-8000-00805f9b34fb"
 UUID_CURRENT_TIME = "00002a2b-0000-1000-8000-00805f9b34fb"
 UUID_DEVICE_INFO = "00000004-0000-3512-2118-0009af100700"
+UUID_FETCH = "00000004-0000-3512-2118-0009af100700"
+UUID_ACTIVITY = "00000005-0000-3512-2118-0009af100700"
 
 DEFAULT_MTU = 23
 
@@ -32,18 +34,41 @@ async def write_message(client, xh, data, tag=(0x82, 0x00), mtu=DEFAULT_MTU):
 
 
 class FrameCollector:
-    """Collects incoming chunked-read notifications."""
+    """Collects incoming notifications: chunked-read frames, heart rate,
+    fetch replies and streamed activity data."""
 
     def __init__(self):
         self.frames = []
         self.heart_rate = []
+        self.fetch_meta = []
+        self.activity = []
+        self._done = False
 
     def __call__(self, char, data):
         raw = bytes(data)
         if char.uuid.lower().startswith("00002a37"):
             self.heart_rate.append(raw)
         else:
+            # chunked-read characteristic (00000017) carries protocol frames
             self.frames.append(raw)
+
+    def on_activity(self, char, data):
+        self.activity.append(bytes(data))
+
+    def on_fetch_meta(self, char, data):
+        raw = bytes(data)
+        self.fetch_meta.append(raw)
+        # 0x10 0x02 => completion of a fetch
+        if len(raw) >= 2 and raw[0] == 0x10 and raw[1] == 0x02:
+            self._done = True
+
+    def is_done(self):
+        return self._done
+
+    def reset_data(self):
+        self.fetch_meta.clear()
+        self.activity.clear()
+        self._done = False
 
 
 class MiBand6:
@@ -99,6 +124,21 @@ class MiBand6:
         await self.client.write_gatt_char(
             UUID_HEART_RATE_CTRL, bytearray([0x15, 0x01, 0x01]), response=False)
         return self
+
+    async def fetch_activity(self, since, data_type=None, timeout=30.0):
+        """Fetch historical activity samples since a datetime.
+
+        Returns a list of decoded sample dicts (see activity.parse_activity).
+        """
+        from .protocol import fetch as fetch_mod
+        from .protocol import activity as activity_mod
+        if data_type is None:
+            data_type = fetch_mod.DataType.ACTIVITY
+        raw = await fetch_mod.fetch(
+            self.client, self.collector, data_type, since,
+            xh=self._xh, timeout=timeout)
+        self._xh += 0x10
+        return activity_mod.parse_activity(raw, since)
 
     async def __aenter__(self):
         return await self.connect()
