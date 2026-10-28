@@ -133,7 +133,7 @@ def build_page():
 <body>
   <header><div><h1>小米手环6 · 数据大屏</h1>
     <div class="sub" id="dash_range">PC 蓝牙直连手环 · 本地采集</div></div>
-    <div class="badge">miband6-pc</div></header>
+    <div class="badge">miband6-api-k163</div></header>
 
   <section id="control" class="panel">
     <h2>连接手环</h2>
@@ -175,7 +175,7 @@ def build_page():
     %s
   </section>
 
-  <footer>miband6-pc · 数据直接来自手环，经 PC 蓝牙直连采集</footer>
+  <footer>miband6-api-k163 · 数据直接来自手环，经 PC 蓝牙直连采集</footer>
 <script>%s</script>
 <script>%s</script>
 </body></html>""" % (dashboard.BASE_CSS, CONTROL_CSS, dashboard.DASH_BODY,

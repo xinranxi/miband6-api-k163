@@ -1,10 +1,10 @@
-# miband6-pc
+# miband6-api-k163
 
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](#环境要求)
 
-小米手环6 的独立 PC 客户端。通过蓝牙直接与手环通信，读取电量、步数、实时心率，无需手机 App 参与。
+小米手环6 的**数据接口**。通过蓝牙直接与手环通信，提供认证、历史数据拉取与实时读取能力，无需手机 App 参与。适配固件 `1.0.6.x` 的 sect163k1 ECDH 认证。
 
 > English version: [README.md](README.md)
 
@@ -52,7 +52,7 @@
 
 ```bash
 git clone <repo-url>
-cd miband6-pc
+cd miband6-api-k163
 pip install -r requirements.txt
 ```
 
@@ -311,7 +311,7 @@ examples/      示例脚本
 
 **Q：能读到多久以前的数据？**
 
-本工具直接与手环通信，只能获取手环当前存储的数据。历史数据请参考 App 提供的导出功能。
+本工具直接与手环通信，只能获取手环**当前存储**的数据（通常最近数天到数周）。更早的历史保留在 App 云端或手机本地数据库中。
 
 **Q：为什么心率读不到？**
 

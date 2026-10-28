@@ -1,9 +1,10 @@
 # miband6-api-k163
 
-> **[中文说明（说人话版）→](README.zh-CN.md)**
+> **[中文说明 →](README.zh-CN.md)**
 
-**A standalone PC client for the Xiaomi Mi Band 6 — connect over Bluetooth and
-read your own device, without the phone app in the loop.**
+**A data interface for the Xiaomi Mi Band 6 — authenticate over Bluetooth and
+pull the band's data, without the phone app in the loop. Targets firmware
+`1.0.6.x` (sect163k1 ECDH).**
 
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](#requirements)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)

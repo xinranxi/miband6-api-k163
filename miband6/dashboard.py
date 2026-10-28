@@ -256,7 +256,7 @@ def build_static_html(samples, title="小米手环6 数据大屏"):
     <div class="sub" id="dash_range">%s ~ %s</div></div>
     <div class="badge">%s</div></header>
   %s
-  <footer>miband6-pc · 数据直接来自手环，经 PC 蓝牙直连采集</footer>
+  <footer>miband6-api-k163 · 数据直接来自手环，经 PC 蓝牙直连采集</footer>
 <script>const AGG = %s;</script>
 <script>%s</script>
 <script>renderDashboard(AGG);</script>
