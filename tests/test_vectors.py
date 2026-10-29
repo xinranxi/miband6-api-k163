@@ -1,7 +1,7 @@
 """Load language-agnostic test vectors and verify the implementation.
 
-This test reads testvectors/sect163k1.json, the same file any other
-language/port can use to verify its own sect163k1 implementation.
+This test reads testvectors/sect163r2.json, the same file any other
+language/port can use to verify its own sect163r2 implementation.
 """
 import json
 import os
@@ -10,7 +10,7 @@ import unittest
 from miband6.crypto import k163
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_VEC_PATH = os.path.join(os.path.dirname(_HERE), "testvectors", "sect163k1.json")
+_VEC_PATH = os.path.join(os.path.dirname(_HERE), "testvectors", "sect163r2.json")
 
 
 def _load():
@@ -21,6 +21,12 @@ def _load():
 class TestVectors(unittest.TestCase):
     def setUp(self):
         self.vec = _load()
+
+    def test_curve_metadata_and_legacy_path(self):
+        self.assertEqual(self.vec["curve"], "sect163r2 (NIST B-163)")
+        legacy_path = os.path.join(os.path.dirname(_HERE), "testvectors", "sect163k1.json")
+        with open(legacy_path, encoding="utf-8") as f:
+            self.assertEqual(json.load(f), self.vec)
 
     def test_params(self):
         p = self.vec["params"]

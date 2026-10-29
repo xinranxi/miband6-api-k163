@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "miband6-api-k163"
 version = "0.1.0"
-description = "Data interface for Xiaomi Mi Band 6: sect163k1 ECDH auth + historical data fetch (firmware 1.0.6.x)"
+description = "Data interface for Xiaomi Mi Band 6: sect163r2 ECDH auth + historical data fetch (firmware 1.0.6.x)"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }

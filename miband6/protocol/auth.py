@@ -2,7 +2,7 @@
 EC authentication handshake for Mi Band 6.
 
 The handshake is a three-message exchange over the chunked-transfer
-characteristic (UUID 00000016-...). It uses ECDH on sect163k1 to derive
+characteristic (UUID 00000016-...). It uses ECDH on sect163r2 to derive
 a session key, then proves knowledge of the pairing key by encrypting a
 device-supplied nonce with both the pairing key and the session key.
 
@@ -17,7 +17,7 @@ Protocol
     band -> host   [10 05 01]                             (success)
 
 where
-    shared       = ECDH_sect163k1(client_priv, band_pub)     (24 bytes)
+    shared       = ECDH_sect163r2(client_priv, band_pub)     (24 bytes)
     session_key  = shared[8:24] XOR pairing_key              (16 bytes)
 """
 import os
@@ -32,13 +32,17 @@ class AuthError(Exception):
     pass
 
 
+# Preserve the historical scalar sampling range used by the handshake.
+_LEGACY_SCALAR_LIMIT = 0x040000000000000000292FE77E70C12A4234C33
+
+
 def _new_keypair():
-    """Generate a sect163k1 key pair valid for the handshake."""
+    """Generate a sect163r2 key pair valid for the handshake."""
     while True:
         words = k163._bytes_to_words(os.urandom(24))
         words[5] &= 0x3  # keep within the 163-bit group order
         d = k163.words6_to_int(words)
-        if d < 1 or d >= k163.N:
+        if d < 1 or d >= _LEGACY_SCALAR_LIMIT:
             continue
         if d.bit_length() < 82:  # firmware rejects very short scalars
             continue

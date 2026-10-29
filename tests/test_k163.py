@@ -1,11 +1,7 @@
 """
-Known-answer tests for the sect163k1 implementation.
+Known-answer tests for the sect163r2 implementation.
 
-These vectors let anyone verify that the curve arithmetic is correct
-without needing a physical device. If these pass, the implementation
-produces the same shared secrets as the real firmware.
-
-(Vectors are captured handshake key pairs, scrubbed of any personal data.)
+These vectors check curve arithmetic without a physical device.
 """
 import os
 import sys
@@ -46,6 +42,12 @@ class TestBasePoint(unittest.TestCase):
     def test_curve_constants(self):
         self.assertEqual(k163.A, 1)
         self.assertEqual(k163.M_BITS, 163)
+        # SEC 2 sect163r2 parameters distinguish B-163 from K-163.
+        self.assertEqual(k163.B, 0x20A601907B8C953CA1481EB10512F78744A3205FD)
+        self.assertEqual(k163.GX, 0x03F0EBA16286A2D57EA0991168D4994637E8343E36)
+        self.assertEqual(k163.GY, 0xD51FBC6C71A0094FA2CDD545B11C5C0C797324F1)
+        self.assertEqual(k163.N, 0x040000000000000000000292FE77E70C12A4234C33)
+        self.assertIsNone(k163.point_mul(k163.N, (k163.GX, k163.GY)))
 
 
 class TestPublicKeys(unittest.TestCase):
@@ -72,7 +74,7 @@ class TestPublicKeys(unittest.TestCase):
 
 class TestECDH(unittest.TestCase):
     def test_shared_secret_matches_reference(self):
-        """ECDH must produce the exact shared secret observed on the wire."""
+        """ECDH must produce the expected shared secret."""
         priv0 = k163.words6_to_int(k163._bytes_to_words(bytes.fromhex(VECTORS[0]["priv"])))
         priv1 = k163.words6_to_int(k163._bytes_to_words(bytes.fromhex(VECTORS[1]["priv"])))
         pub0 = k163.bytes_to_pubkey(bytes.fromhex(VECTORS[0]["pub"]))

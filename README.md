@@ -4,37 +4,24 @@
 
 **A data interface for the Xiaomi Mi Band 6 — authenticate over Bluetooth and
 pull the band's data, without the phone app in the loop. Targets firmware
-`1.0.6.x` (sect163k1 ECDH).**
+`1.0.6.x` (sect163r2 ECDH).**
 
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](#requirements)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-The Mi Band 6 authenticates every Bluetooth client with a pairing key and a
-custom ECDH handshake. Community tools such as Gadgetbridge implement the
-*old* (pre-1.0.6) authentication path and therefore fail on newer firmware
-with *"invalid authentication key"*. This project implements the newer
-handshake correctly.
-
-## The key detail everyone missed
-
-The handshake uses **sect163k1 (NIST K-163)** — a *binary-field* elliptic
-curve — not the prime-field P-256 or P-192 curves that other
-implementations assume. That single mismatch is why correct pairing keys
-were being rejected.
-
-| Implementation | Curve used        | Result on fw 1.0.6.20 |
-|----------------|-------------------|------------------------|
-| Gadgetbridge   | P-256 (prime)     | ✗ invalid key          |
-| band6.py       | P-192 (prime)     | ✗ status `0x07`        |
-| **this project** | **sect163k1 (binary)** | **✓ authenticated** |
+The Mi Band 6 authentication handshake implemented here uses a pairing key
+and ECDH on **sect163r2 (NIST B-163)**, a binary-field elliptic curve.
+The project name `miband6-api-k163` is historical and does not identify the
+curve; the `k163` module name is retained for compatibility.
 
 ## What it can do
 
-- Authenticate against the band over BLE (sect163k1 ECDH)
+- Authenticate against the band over BLE (sect163r2 ECDH)
 - Read battery level, step counter and device time
 - Subscribe to live heart rate (band must be worn)
 - **Fetch historical activity data** — minute-level steps, heart rate and
-  sleep stored on the band — and export it to CSV/JSON, entirely over BLE
+  sleep-related fields stored on the band — and export them to CSV/JSON over BLE
+  (sleep interpretation and history completeness require further validation)
 
 > Historical data covers what the band stores locally (typically the most
 > recent days/weeks). Older history lives in the vendor cloud or the phone
@@ -62,8 +49,6 @@ look for `huamiAuthKey=`:
 adb pull /sdcard/Android/data/com.mi.health/files/log/XiaomiFit.device.log
 grep -o 'huamiAuthKey=[0-9a-f]\{32\}' XiaomiFit.device.log
 ```
-
-This is the same method documented by the Gadgetbridge project.
 
 **B. If you already exported your device data**, the key is in the app's
 `device_db` under the `detail` field of your band's row.
@@ -166,14 +151,14 @@ The curve arithmetic is covered by known-answer tests that need no device:
 python -m unittest discover -s tests -v
 ```
 
-If those pass, the ECDH implementation reproduces the same shared secrets as
-the firmware.
+These tests check the supplied vectors; device interoperability requires a
+separate hardware test.
 
 ## Project layout
 
 ```
 miband6/
-  k163.py      sect163k1 field + curve arithmetic (pure Python)
+  crypto/k163.py  sect163r2 field + curve arithmetic (pure Python; legacy module name)
   chunked.py   chunked-transfer framing
   auth.py      handshake
   fetch.py     historical data fetch protocol

@@ -1,0 +1,44 @@
+{
+  "description": "Xiaomi Mi Band 6 sect163r2 ECDH known-answer test vectors",
+  "curve": "sect163r2 (NIST B-163)",
+  "field": {
+    "type": "binary",
+    "degree": 163,
+    "reduction_polynomial": "x^163 + x^7 + x^6 + x^3 + 1",
+    "reduction_polynomial_int": "0x8000000000000000000000000000000000000000C9"
+  },
+  "curve_equation": "y^2 + x*y = x^3 + a*x^2 + b",
+  "params": {
+    "a": "0x1",
+    "b": "0x20A601907B8C953CA1481EB10512F78744A3205FD",
+    "gx": "0x03F0EBA16286A2D57EA0991168D4994637E8343E36",
+    "gy": "0xD51FBC6C71A0094FA2CDD545B11C5C0C797324F1",
+    "n": "0x040000000000000000000292FE77E70C12A4234C33"
+  },
+  "encoding": {
+    "scalar": "6 x uint32 little-endian (24 bytes); only low 163 bits significant",
+    "point": "X || Y, each 6 x uint32 little-endian (48 bytes total)"
+  },
+  "keypairs": [
+    {
+      "private": "2bb4d47ed5b15367bf8ed3f821b1b658344880c300000000",
+      "public": "1490aab79a574abfa42e25317b2ab83eb4a5ae21020000005e25c0ac40e635ce368abec67bc7aefaaac36eb405000000"
+    },
+    {
+      "private": "1e3f0dc7d5aefd4baeab1a1ab85de62dea31901d03000000",
+      "public": "36f392db19c08af2572372181ff804bcebb8eaa801000000c8247fdd46f83200120bb7876c88d42dd283efc307000000"
+    },
+    {
+      "private": "aa9ae791759ab471387f72a6d4237957213a503703000000",
+      "public": "0ab6f77b7db7f0b931b28cdeefb54482c0e0736805000000bebe34bcfad4bda8931c7bd98ffebe497743775b00000000"
+    }
+  ],
+  "ecdh": [
+    {
+      "alice_private": "2bb4d47ed5b15367bf8ed3f821b1b658344880c300000000",
+      "bob_public": "36f392db19c08af2572372181ff804bcebb8eaa801000000c8247fdd46f83200120bb7876c88d42dd283efc307000000",
+      "shared_secret": "8f707bb0d1a481714895cfbc073e1dfeef58520f00000000",
+      "note": "shared_secret = X coordinate of (alice_private * bob_public), 6x uint32 LE"
+    }
+  ]
+}

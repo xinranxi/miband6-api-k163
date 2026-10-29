@@ -61,7 +61,7 @@ band → host    tag 0x8200   [10 05 01]      ← success
 
 ### Public key encoding
 
-Keys lie on **sect163k1 (NIST K-163)**, a binary-field curve, *not* a prime
+Keys lie on **sect163r2 (NIST B-163)**, a binary-field curve, *not* a prime
 curve. Each public key is 48 bytes:
 
 ```
@@ -72,7 +72,7 @@ Y : 6 × little-endian uint32   (24 bytes)
 ### Session key derivation
 
 ```
-shared       = ECDH_sect163k1(client_private, band_public)   # 24 bytes
+shared       = ECDH_sect163r2(client_private, band_public)   # 24 bytes
 session_key  = shared[8:24] XOR pairing_key                  # 16 bytes
 ```
 
@@ -88,7 +88,7 @@ Both 16-byte ciphertexts are concatenated after the `0x05` opcode.
 A response status byte of `0x01` (i.e. `10 05 01`) means the pairing key
 was accepted. `0x07` / `0x08` indicate a rejected key or malformed proof.
 
-## Curve parameters (sect163k1)
+## Curve parameters (sect163r2)
 
 ```
 field:     GF(2^163), x^163 + x^7 + x^6 + x^3 + 1
@@ -97,10 +97,10 @@ a = 1
 b = 0x20A601907B8C953CA1481EB10512F78744A3205FD
 Gx= 0x03F0EBA16286A2D57EA0991168D4994637E8343E36
 Gy= 0xD51FBC6C71A0094FA2CDD545B11C5C0C797324F1
-n = 0x040000000000000000292FE77E70C12A4234C33
+n = 0x040000000000000000000292FE77E70C12A4234C33
 ```
 
-The full arithmetic lives in `miband6/k163.py`; `tests/test_k163.py`
+The full arithmetic lives in `miband6/crypto/k163.py`; `tests/test_k163.py`
 contains known-answer vectors so the implementation can be verified
 without any hardware.
 
@@ -164,6 +164,8 @@ year (uint16 little-endian) | month | day | hour | minute | 0x00 | timezone
 | `0x3d` | max heart rate          |
 
 ### Activity sample format
+
+Sleep-related field meanings and historical data completeness require further validation.
 
 Each notification on `00000005` is `counter (1 byte)` followed by N
 fixed 8-byte samples (one sample per minute):

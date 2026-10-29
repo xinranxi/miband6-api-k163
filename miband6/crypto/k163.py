@@ -1,5 +1,7 @@
 """
-sect163k1 (NIST K-163) binary-field elliptic curve.
+sect163r2 (NIST B-163) binary-field elliptic curve.
+
+The historical module name k163 is retained for compatibility.
 
 This is the curve used by Xiaomi Mi Band 6 (and likely other Huami/Xiaomi
 devices with recent firmware) for its ECDH key agreement during the
@@ -28,7 +30,7 @@ GX = 0x03F0EBA16286A2D57EA0991168D4994637E8343E36
 GY = 0xD51FBC6C71A0094FA2CDD545B11C5C0C797324F1
 
 # Order of the base point
-N = 0x040000000000000000292FE77E70C12A4234C33
+N = 0x040000000000000000000292FE77E70C12A4234C33
 
 
 # --------------------------------------------------------------------------
